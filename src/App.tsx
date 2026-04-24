@@ -20,7 +20,7 @@ function App() {
     if (code) {
       getAccessToken(code).then(t => {
         setToken(t);
-        window.history.replaceState({}, document.title, "/");
+        window.history.replaceState({}, document.title, window.location.pathname);
       });
     }
   }, []);
