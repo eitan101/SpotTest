@@ -98,98 +98,105 @@ function App() {
     return true;
   };
 
-  if (error) {
-    return (
-      <div className="login-screen">
-        <h1>Error</h1>
-        <p>{error}</p>
-        <button onClick={() => window.location.href = window.location.pathname}>Try Again</button>
-      </div>
-    );
-  }
+  const renderContent = () => {
+    if (error) {
+      return (
+        <div className="login-screen">
+          <h1>Error</h1>
+          <p>{error}</p>
+          <button onClick={() => window.location.href = window.location.pathname}>Try Again</button>
+        </div>
+      );
+    }
 
-  if (loading) {
-    return (
-      <div className="login-screen">
-        <h1>Loading...</h1>
-        <p>Connecting to Spotify...</p>
-      </div>
-    );
-  }
+    if (loading) {
+      return (
+        <div className="login-screen">
+          <h1>Loading...</h1>
+          <p>Connecting to Spotify...</p>
+        </div>
+      );
+    }
 
-  if (!token) {
-    return (
-      <div className="login-screen">
-        <h1>Hitster Clone</h1>
-        <p>Guess the chronological order of songs!</p>
-        <button onClick={redirectToAuthCodeFlow}>Login with Spotify</button>
-      </div>
-    );
-  }
+    if (!token) {
+      return (
+        <div className="login-screen">
+          <h1>Hitster Clone</h1>
+          <p>Guess the chronological order of songs!</p>
+          <button onClick={redirectToAuthCodeFlow}>Login with Spotify</button>
+        </div>
+      );
+    }
 
-  if (gameOver) {
+    if (gameOver) {
+      return (
+        <div className="game-over">
+          <h1>Game Over!</h1>
+          <p>Your score: {score}</p>
+          <button onClick={() => window.location.reload()}>Play Again</button>
+        </div>
+      );
+    }
+
     return (
-      <div className="game-over">
-        <h1>Game Over!</h1>
-        <p>Your score: {score}</p>
-        <button onClick={() => window.location.reload()}>Play Again</button>
+      <div className="app">
+        <header>
+          <div className="score">Score: {score}</div>
+        </header>
+
+        <main>
+          <div className="timeline">
+            <button className="drop-zone" onClick={() => handleGuess(0)}>+</button>
+            {timeline.map((track, i) => (
+              <div key={track.id} className="track-container">
+                <div className="track-card">
+                  <img src={track.album.images[0].url} alt={track.name} />
+                  <div className="track-info">
+                    <div className="name">{track.name}</div>
+                    <div className="artist">{track.artists[0].name}</div>
+                    <div className="year">{new Date(track.album.release_date).getFullYear()}</div>
+                  </div>
+                </div>
+                <button className="drop-zone" onClick={() => handleGuess(i + 1)}>+</button>
+              </div>
+            ))}
+          </div>
+
+          {currentTrack && (
+            <div className="current-track">
+              <h2>Current Song</h2>
+              <div className={`track-card mystery ${revealed ? 'revealed' : ''}`}>
+                {revealed ? (
+                  <>
+                    <img src={currentTrack.album.images[0].url} alt={currentTrack.name} />
+                    <div className="track-info">
+                      <div className="name">{currentTrack.name}</div>
+                      <div className="artist">{currentTrack.artists[0].name}</div>
+                      <div className="year">{new Date(currentTrack.album.release_date).getFullYear()}</div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mystery-content">?</div>
+                )}
+              </div>
+              <audio 
+                ref={audioRef} 
+                src={currentTrack.preview_url || ''} 
+                autoPlay 
+                controls 
+              />
+            </div>
+          )}
+        </main>
       </div>
     );
-  }
+  };
 
   return (
-    <div className="app">
-      <header>
-        <div className="score">Score: {score}</div>
-      </header>
-
-      <main>
-        <div className="timeline">
-          <button className="drop-zone" onClick={() => handleGuess(0)}>+</button>
-          {timeline.map((track, i) => (
-            <div key={track.id} className="track-container">
-              <div className="track-card">
-                <img src={track.album.images[0].url} alt={track.name} />
-                <div className="track-info">
-                  <div className="name">{track.name}</div>
-                  <div className="artist">{track.artists[0].name}</div>
-                  <div className="year">{new Date(track.album.release_date).getFullYear()}</div>
-                </div>
-              </div>
-              <button className="drop-zone" onClick={() => handleGuess(i + 1)}>+</button>
-            </div>
-          ))}
-        </div>
-
-        {currentTrack && (
-          <div className="current-track">
-            <h2>Current Song</h2>
-            <div className={`track-card mystery ${revealed ? 'revealed' : ''}`}>
-              {revealed ? (
-                <>
-                  <img src={currentTrack.album.images[0].url} alt={currentTrack.name} />
-                  <div className="track-info">
-                    <div className="name">{currentTrack.name}</div>
-                    <div className="artist">{currentTrack.artists[0].name}</div>
-                    <div className="year">{new Date(currentTrack.album.release_date).getFullYear()}</div>
-                  </div>
-                </>
-              ) : (
-                <div className="mystery-content">?</div>
-              )}
-            </div>
-            <audio 
-              ref={audioRef} 
-              src={currentTrack.preview_url || ''} 
-              autoPlay 
-              controls 
-            />
-          </div>
-        )}
-      </main>
-
+    <div className="layout-container">
+      {renderContent()}
       <footer>
-        <div className="version">v1.0.1</div>
+        <div className="version">v1.0.2</div>
       </footer>
     </div>
   );
