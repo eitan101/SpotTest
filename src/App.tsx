@@ -187,6 +187,10 @@ function App() {
           </div>
         )}
       </main>
+
+      <footer>
+        <div className="version">v1.0.1</div>
+      </footer>
     </div>
   );
 }
