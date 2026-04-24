@@ -1,5 +1,5 @@
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || 'http://localhost:5173/';
+const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || window.location.origin + window.location.pathname;
 
 export async function redirectToAuthCodeFlow() {
     const verifier = generateCodeVerifier(128);
