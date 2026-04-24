@@ -60,28 +60,36 @@ export async function getAccessToken(code: string): Promise<string> {
 export async function fetchTracks(token: string): Promise<any[]> {
     const playlistIds = [
         '37i9dQZF1DXcBWIGoYBM3M', // Today's Top Hits
-        '37i9dQZF1DXaKIArc0GqRy', // 80s Hits
-        '37i9dQZF1DX0JKuGyExSZZ', // 70s Hits
-        '37i9dQZF1DX4UtSsGTpSno', // 60s Hits
-        '37i9dQZF1DXbTxeuPH60LR', // 90s Hits
-        '37i9dQZF1DX4o3oZnmoaxn', // 2000s Hits
+        '37i9dQZF1DX4UtSsGTpSno', // 60s
+        '37i9dQZF1DXaKIArc0GqRy', // 80s
+        '37i9dQZF1DX0JKuGyExSZZ', // 70s
+        '37i9dQZF1DXbTxeuPH60LR', // 90s
+        '37i9dQZF1DX4o3oZnmoaxn', // 2000s
+        '37i9dQZF1DX5Ejj0EkURtP', // All Out 2010s
+        '37i9dQZF1DX4JpneCYUI7z', // Global Hits
     ];
     
     const allTracks: any[] = [];
     
     for (const id of playlistIds) {
         try {
-            const response = await fetch(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=20`, {
-                method: "GET", headers: { Authorization: `Bearer ${token}` }
+            const response = await fetch(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=50`, {
+                method: "GET", 
+                headers: { Authorization: `Bearer ${token}` }
             });
             const data = await response.json();
             if (data.items) {
-                allTracks.push(...data.items.map((item: any) => item.track).filter((t: any) => t && t.preview_url));
+                const validTracks = data.items
+                    .map((item: any) => item.track)
+                    .filter((t: any) => t && t.preview_url && t.album && t.album.release_date);
+                allTracks.push(...validTracks);
             }
         } catch (e) {
             console.error("Failed to fetch playlist", id, e);
         }
     }
     
-    return allTracks;
+    // Remove duplicates
+    const uniqueTracks = Array.from(new Map(allTracks.map(t => [t.id, t])).values());
+    return uniqueTracks;
 }
