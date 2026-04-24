@@ -11,6 +11,8 @@ function App() {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -18,26 +20,45 @@ function App() {
     const code = params.get("code");
 
     if (code) {
-      getAccessToken(code).then(t => {
-        setToken(t);
-        window.history.replaceState({}, document.title, window.location.pathname);
-      });
+      setLoading(true);
+      getAccessToken(code)
+        .then(t => {
+          setToken(t);
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch(err => {
+          console.error("Auth error:", err);
+          setError("Failed to get access token from Spotify.");
+        })
+        .finally(() => setLoading(false));
     }
   }, []);
 
   useEffect(() => {
     if (token) {
-      fetchTracks(token).then(data => {
-        const shuffled = data.sort(() => 0.5 - Math.random());
-        setTracks(shuffled);
-        
-        // Initial song
-        const first = shuffled.pop();
-        if (first) {
-          setTimeline([first]);
-          setCurrentTrack(shuffled.pop() || null);
-        }
-      });
+      setLoading(true);
+      fetchTracks(token)
+        .then(data => {
+          if (data.length === 0) {
+            setError("No tracks found with previews. Check your Spotify settings.");
+            return;
+          }
+          const shuffled = data.sort(() => 0.5 - Math.random());
+          setTracks(shuffled);
+          
+          const first = shuffled.pop();
+          const second = shuffled.pop();
+          
+          if (first && second) {
+            setTimeline([first]);
+            setCurrentTrack(second);
+          }
+        })
+        .catch(err => {
+          console.error("Fetch error:", err);
+          setError("Failed to fetch tracks from Spotify.");
+        })
+        .finally(() => setLoading(false));
     }
   }, [token]);
 
@@ -47,7 +68,6 @@ function App() {
     const newTimeline = [...timeline];
     newTimeline.splice(index, 0, currentTrack);
 
-    // Check if correctly placed
     const isCorrect = checkPlacement(newTimeline);
 
     if (isCorrect) {
@@ -56,7 +76,12 @@ function App() {
       setRevealed(true);
       setTimeout(() => {
         setRevealed(false);
-        setCurrentTrack(tracks.pop() || null);
+        const next = tracks.pop();
+        if (next) {
+          setCurrentTrack(next);
+        } else {
+          setGameOver(true);
+        }
       }, 2000);
     } else {
       setRevealed(true);
@@ -66,12 +91,31 @@ function App() {
 
   const checkPlacement = (newTimeline: Track[]) => {
     for (let i = 0; i < newTimeline.length - 1; i++) {
-      const yearA = new Date(newTimeline[i].album.release_date).getFullYear();
-      const yearB = new Date(newTimeline[i+1].album.release_date).getFullYear();
-      if (yearA > yearB) return false;
+      const dateA = new Date(newTimeline[i].album.release_date).getTime();
+      const dateB = new Date(newTimeline[i+1].album.release_date).getTime();
+      if (dateA > dateB) return false;
     }
     return true;
   };
+
+  if (error) {
+    return (
+      <div className="login-screen">
+        <h1>Error</h1>
+        <p>{error}</p>
+        <button onClick={() => window.location.href = window.location.pathname}>Try Again</button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="login-screen">
+        <h1>Loading...</h1>
+        <p>Connecting to Spotify...</p>
+      </div>
+    );
+  }
 
   if (!token) {
     return (
