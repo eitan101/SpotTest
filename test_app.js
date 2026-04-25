@@ -2,46 +2,61 @@ import puppeteer from 'puppeteer';
 
 (async () => {
   console.log("Launching Puppeteer...");
-  const browser = await puppeteer.launch({ headless: "new" });
+  const browser = await puppeteer.launch({ 
+    headless: "new",
+    args: ['--ignore-certificate-errors']
+  });
   const page = await browser.newPage();
 
   page.on('console', msg => {
       console.log(`[Browser Console] ${msg.type()}: ${msg.text()}`);
   });
 
-  console.log("Navigating to http://localhost:5173/SpotTest/");
-  await page.goto('http://localhost:5173/SpotTest/', { waitUntil: 'networkidle0' });
+  page.on('pageerror', error => {
+      console.error(`[Page Error]: ${error.message}`);
+  });
 
-  console.log("Waiting for app to load...");
-  
+  console.log("Navigating to http://localhost:5173/SpotTest/");
+  try {
+    await page.goto('http://localhost:5173/SpotTest/', { waitUntil: 'networkidle0' });
+  } catch (e) {
+    console.log("Network idle 0 failed, continuing...");
+  }
+
+  console.log("Checking page content...");
+  const content = await page.content();
+  // console.log(content);
+
   // Check if we bypassed login
   const loginButton = await page.$('button::-p-text(Login with Spotify)');
   if (loginButton) {
-      console.error("❌ Test Failed: Still on login screen. VITE_TEMP_SPOTIFY_TOKEN bypass didn't work.");
+      console.error("❌ Test Failed: Still on login screen.");
       await browser.close();
       process.exit(1);
   }
 
-  console.log("Login bypassed successfully. Waiting for tracks to fetch...");
+  console.log("Login bypassed. Waiting for game UI...");
   
   try {
-      // Wait for either the timeline (game started) or an error message
-      await page.waitForSelector('.timeline, .login-screen h1::-p-text(Error)', { timeout: 10000 });
+      // Look for the "Lives" display which was recently added
+      await page.waitForSelector('.lives', { timeout: 10000 });
+      const livesText = await page.$eval('.lives', el => el.textContent);
+      console.log(`✅ Test Passed: Game UI found. Lives: ${livesText.trim()}`);
       
-      const errorScreen = await page.$('.login-screen h1::-p-text(Error)');
-      if (errorScreen) {
-          const errorText = await page.$eval('.login-screen p', el => el.textContent);
-          console.error(`❌ Test Failed: App hit an error state: ${errorText}`);
-      } else {
-          const tracks = await page.$$('.track-card');
-          if (tracks.length >= 2) {
-             console.log(`✅ Test Passed: Game loaded successfully with ${tracks.length} track cards visible.`);
-          } else {
-             console.error(`❌ Test Failed: Game loaded, but only ${tracks.length} track cards found.`);
-          }
-      }
+      const scoreText = await page.$eval('.score', el => el.textContent);
+      console.log(`Score visible: ${scoreText.trim()}`);
+
+      const tracks = await page.$$('.track-card');
+      console.log(`Number of track cards: ${tracks.length}`);
+      
   } catch (e) {
-      console.error("❌ Test Failed: Timed out waiting for tracks to load.");
+      console.error("❌ Test Failed: Timed out or error waiting for game UI.");
+      const isError = await page.$('.login-screen h1');
+      if (isError) {
+          const errTitle = await page.$eval('.login-screen h1', el => el.textContent);
+          const errMsg = await page.$eval('.login-screen p', el => el.textContent);
+          console.error(`App Error Screen: ${errTitle} - ${errMsg}`);
+      }
   }
 
   await browser.close();

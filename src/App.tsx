@@ -149,6 +149,13 @@ function App() {
     return true;
   };
 
+  const getProxyImageUrl = (url: string) => {
+    if (url.includes('i.scdn.co')) {
+      return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    }
+    return url;
+  };
+
   const renderContent = () => {
     if (error) {
       return (
@@ -206,7 +213,7 @@ function App() {
             {timeline.map((track, i) => (
               <div key={track.id} className="track-container">
                 <div className="track-card">
-                  <img src={track.album.images[0].url} alt={track.name} />
+                  <img src={getProxyImageUrl(track.album.images[0].url)} alt={track.name} />
                   <div className="track-info">
                     <div className="name">{track.name}</div>
                     <div className="artist">{track.artists[0].name}</div>
@@ -224,7 +231,7 @@ function App() {
               <div className={`track-card mystery ${revealed ? 'revealed' : ''}`}>
                 {revealed ? (
                   <>
-                    <img src={currentTrack.album.images[0].url} alt={currentTrack.name} />
+                    <img src={getProxyImageUrl(currentTrack.album.images[0].url)} alt={currentTrack.name} />
                     <div className="track-info">
                       <div className="name">{currentTrack.name}</div>
                       <div className="artist">{currentTrack.artists[0].name}</div>
