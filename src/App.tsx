@@ -116,6 +116,17 @@ function App() {
     }
   }, [token]);
 
+  const nextSong = () => {
+    setRevealed(false);
+    setShowNextButton(false);
+    const next = tracks.pop();
+    if (next) {
+      setCurrentTrack(next);
+    } else {
+      setGameOver(true);
+    }
+  };
+
   const handleGuess = (index: number) => {
     if (!currentTrack || revealed) return;
 
@@ -129,17 +140,19 @@ function App() {
       setScore(score + 1);
       setRevealed(true);
       setTimeout(() => {
-        setRevealed(false);
-        const next = tracks.pop();
-        if (next) {
-          setCurrentTrack(next);
-        } else {
-          setGameOver(true);
-        }
+        nextSong();
       }, 2000);
     } else {
       setRevealed(true);
-      setGameOver(true);
+      const newLives = lives - 1;
+      setLives(newLives);
+      if (newLives > 0) {
+        setShowNextButton(true);
+      } else {
+        setTimeout(() => {
+          setGameOver(true);
+        }, 2000);
+      }
     }
   };
 
