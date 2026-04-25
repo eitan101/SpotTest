@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Track } from './types';
 import { redirectToAuthCodeFlow, getAccessToken, fetchTracks, playTrack } from './spotify';
 import './App.css';
@@ -17,7 +17,6 @@ function App() {
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
