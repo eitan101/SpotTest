@@ -17,6 +17,7 @@ function App() {
   const [gameOver, setGameOver] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isLoadingTrack, setIsLoadingTrack] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showNextButton, setShowNextButton] = useState(false);
 
@@ -70,6 +71,10 @@ function App() {
       player.addListener('player_state_changed', (state: any) => {
         if (!state) return;
         setIsPlaying(!state.paused);
+        // Hide loader when we have a valid state and it's playing our current track
+        if (state.track_window?.current_track) {
+          setIsLoadingTrack(false);
+        }
       });
 
       player.connect();
@@ -82,8 +87,10 @@ function App() {
 
   useEffect(() => {
     if (currentTrack && deviceId && token) {
+      setIsLoadingTrack(true);
       playTrack(token, deviceId, currentTrack.uri).catch(err => {
         console.error("Failed to play track via Spotify Connect", err);
+        setIsLoadingTrack(false);
       });
     }
   }, [currentTrack, deviceId, token]);
@@ -119,11 +126,13 @@ function App() {
   const nextSong = () => {
     setRevealed(false);
     setShowNextButton(false);
+    setIsLoadingTrack(true);
     const next = tracks.pop();
     if (next) {
       setCurrentTrack(next);
     } else {
       setGameOver(true);
+      setIsLoadingTrack(false);
     }
   };
 
@@ -245,6 +254,12 @@ function App() {
             <div className="current-track">
               <h2>Current Song</h2>
               <div className={`track-card mystery ${revealed ? 'revealed' : ''}`}>
+                {isLoadingTrack && (
+                  <div className="loader-overlay">
+                    <div className="spinner"></div>
+                    <p>Loading Track...</p>
+                  </div>
+                )}
                 {revealed ? (
                   <>
                     <img src={getProxyImageUrl(currentTrack.album.images[0].url)} alt={currentTrack.name} />
@@ -266,16 +281,18 @@ function App() {
                   <>
                     <button 
                       onClick={() => player?.togglePlay()}
+                      disabled={isLoadingTrack}
                       style={{ 
                         padding: '12px 24px', 
                         fontSize: '1.2rem', 
-                        cursor: 'pointer', 
+                        cursor: isLoadingTrack ? 'not-allowed' : 'pointer', 
                         borderRadius: '30px', 
-                        background: '#1DB954', 
+                        background: isLoadingTrack ? '#555' : '#1DB954', 
                         color: 'white', 
                         border: 'none',
                         fontWeight: 'bold',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+                        opacity: isLoadingTrack ? 0.7 : 1
                       }}
                     >
                       {isPlaying ? '⏸ Pause' : '▶️ Play'}
@@ -312,13 +329,13 @@ function App() {
       {renderContent()}
       <footer>
         <div className="version" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-          v1.0.5
+          v1.0.6
           {token && (
             <button 
               style={{ fontSize: '0.7rem', padding: '4px 8px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px' }} 
               onClick={() => {
                 navigator.clipboard.writeText(token);
-                alert("Token copied! You can now paste this in your localhost environment.");
+                alert("Token copied!");
               }}
             >
               Copy Token
