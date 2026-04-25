@@ -11,7 +11,7 @@ export async function redirectToAuthCodeFlow() {
     params.append("client_id", CLIENT_ID);
     params.append("response_type", "code");
     params.append("redirect_uri", REDIRECT_URI);
-    params.append("scope", "user-read-private user-read-email");
+    params.append("scope", "user-read-private user-read-email streaming app-remote-control user-modify-playback-state user-read-playback-state");
     params.append("code_challenge_method", "S256");
     params.append("code_challenge", challenge);
 
@@ -58,59 +58,63 @@ export async function getAccessToken(code: string): Promise<string> {
 }
 
 export async function fetchTracks(token: string): Promise<any[]> {
-    console.log("Starting fetchTracks with token:", token.substring(0, 10) + "...");
+    console.log("Starting fetchTracks (Search Mode) with token:", token.substring(0, 10) + "...");
     
-    // Using a mix of hitster-like playlists
-    const playlistIds = [
-        '37i9dQZF1DXcBWIGoYBM3M', // Today's Top Hits
-        '37i9dQZF1DXaKIArc0GqRy', // 80s
-        '37i9dQZF1DXbTxeuPH60LR', // 90s
-        '37i9dQZF1DX4o3oZnmoaxn', // 2000s
-        '37i9dQZF1DX5Ejj0EkURtP', // 2010s
-        '37i9dQZF1DX0JKuGyExSZZ', // 70s
+    const queries = [
+        'year:1970-1979',
+        'year:1980-1989',
+        'year:1990-1999',
+        'year:2000-2009',
+        'year:2010-2019',
+        'year:2020-2024'
     ];
     
     const allTracks: any[] = [];
     
-    for (const id of playlistIds) {
+    for (const q of queries) {
         try {
-            const response = await fetch(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=50`, {
+            console.log(`Searching for: ${q}`);
+            const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=10`, {
                 method: "GET", 
                 headers: { Authorization: `Bearer ${token}` }
             });
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                console.error(`Playlist ${id} failed:`, response.status, errorData);
+                console.error(`Search failed for ${q}:`, response.status, errorData);
                 continue;
             }
 
             const data = await response.json();
-            if (data.items) {
-                const tracksWithData = data.items
-                    .map((item: any) => item.track)
-                    .filter((t: any) => t && t.id && t.album && t.album.release_date);
-                
-                allTracks.push(...tracksWithData);
+            if (data.tracks && data.tracks.items) {
+                const validTracks = data.tracks.items.filter((t: any) => t && t.id && t.album && t.album.release_date);
+                console.log(`Found ${validTracks.length} tracks for ${q}`);
+                allTracks.push(...validTracks);
             }
         } catch (e) {
-            console.error("Fetch exception for playlist", id, e);
+            console.error("Search exception for query", q, e);
         }
     }
     
     // Deduplicate
     const unique = Array.from(new Map(allTracks.map(t => [t.id, t])).values());
     console.log(`Total unique tracks found: ${unique.length}`);
-    
-    const withPreviews = unique.filter(t => t.preview_url);
-    console.log(`Tracks with previews: ${withPreviews.length}`);
 
-    // If we have NO previews, we might be in a restricted region or account.
-    // In that case, we'll return the tracks anyway so the game can at least show cards.
-    if (withPreviews.length === 0 && unique.length > 0) {
-        console.warn("NO TRACKS HAVE PREVIEWS. Returning tracks without previews for debugging.");
-        return unique.slice(0, 50); // Return some tracks so the UI doesn't just show "Error"
+    // Return everything we found since Web Playback SDK plays full tracks!
+    return unique;
+}
+
+export async function playTrack(token: string, deviceId: string, trackUri: string) {
+    const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uris: [trackUri] })
+    });
+    if (!response.ok && response.status !== 204) {
+        const err = await response.json().catch(() => ({}));
+        console.error("Play request failed", response.status, err);
     }
-    
-    return withPreviews;
 }

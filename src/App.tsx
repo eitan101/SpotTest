@@ -1,19 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
 import { Track } from './types';
-import { redirectToAuthCodeFlow, getAccessToken, fetchTracks } from './spotify';
+import { redirectToAuthCodeFlow, getAccessToken, fetchTracks, playTrack } from './spotify';
 import './App.css';
 
 function App() {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(import.meta.env.VITE_TEMP_SPOTIFY_TOKEN || null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [timeline, setTimeline] = useState<Track[]>([]);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [player, setPlayer] = useState<any>(null);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -35,12 +38,61 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!token) return;
+
+    const script = document.createElement("script");
+    script.src = "https://sdk.scdn.co/spotify-player.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    window.onSpotifyWebPlaybackSDKReady = () => {
+      const player = new window.Spotify.Player({
+        name: 'Hitster Clone Web Player',
+        getOAuthToken: (cb: (token: string) => void) => { cb(token); },
+        volume: 0.5
+      });
+
+      setPlayer(player);
+
+      player.addListener('ready', ({ device_id }: { device_id: string }) => {
+        console.log('Ready with Device ID', device_id);
+        setDeviceId(device_id);
+        setPlayerReady(true);
+      });
+
+      player.addListener('not_ready', ({ device_id }: { device_id: string }) => {
+        console.log('Device ID has gone offline', device_id);
+        setPlayerReady(false);
+      });
+
+      player.addListener('player_state_changed', (state: any) => {
+        if (!state) return;
+        setIsPlaying(!state.paused);
+      });
+
+      player.connect();
+    };
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (currentTrack && deviceId && token) {
+      playTrack(token, deviceId, currentTrack.uri).catch(err => {
+        console.error("Failed to play track via Spotify Connect", err);
+      });
+    }
+  }, [currentTrack, deviceId, token]);
+
+  useEffect(() => {
     if (token) {
       setLoading(true);
       fetchTracks(token)
         .then(data => {
           if (data.length === 0) {
-            setError("No tracks found with previews. Check your Spotify settings.");
+            setError("No tracks found. This might be due to API restrictions.");
             return;
           }
           const shuffled = data.sort(() => 0.5 - Math.random());
@@ -193,12 +245,29 @@ function App() {
                   <div className="mystery-content">?</div>
                 )}
               </div>
-              <audio 
-                ref={audioRef} 
-                src={currentTrack.preview_url || ''} 
-                autoPlay 
-                controls 
-              />
+
+              <div className="player-controls" style={{ marginTop: '20px', textAlign: 'center' }}>
+                {!playerReady ? (
+                  <p style={{ color: '#aaa' }}>Initializing Premium Player...</p>
+                ) : (
+                  <button 
+                    onClick={() => player?.togglePlay()}
+                    style={{ 
+                      padding: '12px 24px', 
+                      fontSize: '1.2rem', 
+                      cursor: 'pointer', 
+                      borderRadius: '30px', 
+                      background: '#1DB954', 
+                      color: 'white', 
+                      border: 'none',
+                      fontWeight: 'bold',
+                      boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    {isPlaying ? '⏸ Pause' : '▶️ Play'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </main>
@@ -211,7 +280,7 @@ function App() {
       {renderContent()}
       <footer>
         <div className="version" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-          v1.0.3
+          v1.0.4
           {token && (
             <button 
               style={{ fontSize: '0.7rem', padding: '4px 8px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px' }} 

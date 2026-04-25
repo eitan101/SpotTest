@@ -1,6 +1,8 @@
 export interface Track {
   id: string;
   name: string;
+  uri: string;
+  external_urls: { spotify: string };
   artists: { name: string }[];
   album: {
     name: string;
