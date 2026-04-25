@@ -175,20 +175,6 @@ function App() {
           <h1>Hitster Clone</h1>
           <p>Guess the chronological order of songs!</p>
           <button onClick={redirectToAuthCodeFlow}>Login with Spotify</button>
-          
-          <div style={{ marginTop: '3rem', padding: '1rem', border: '1px dashed #555', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-            <p style={{ fontSize: '0.8rem', color: '#aaa', margin: 0 }}>Local Dev Bypass:</p>
-            <input 
-              type="text" 
-              placeholder="Paste token from prod..." 
-              style={{ padding: '8px', borderRadius: '4px', border: '1px solid #333', background: '#222', color: 'white', width: '250px' }}
-              onChange={(e) => {
-                if (e.target.value.length > 50) {
-                  setToken(e.target.value);
-                }
-              }} 
-            />
-          </div>
         </div>
       );
     }
@@ -205,8 +191,13 @@ function App() {
 
     return (
       <div className="app">
-        <header>
-          <div className="score">Score: {score}</div>
+        <header style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '10px 20px', boxSizing: 'border-box' }}>
+          <div className="lives" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#ff4444' }}>
+            Lives: {'❤️'.repeat(lives)}
+          </div>
+          <div className="score" style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1DB954' }}>
+            Score: {score}
+          </div>
         </header>
 
         <main>
@@ -245,26 +236,45 @@ function App() {
                 )}
               </div>
 
-              <div className="player-controls" style={{ marginTop: '20px', textAlign: 'center' }}>
+              <div className="player-controls" style={{ marginTop: '20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
                 {!playerReady ? (
                   <p style={{ color: '#aaa' }}>Initializing Premium Player...</p>
                 ) : (
-                  <button 
-                    onClick={() => player?.togglePlay()}
-                    style={{ 
-                      padding: '12px 24px', 
-                      fontSize: '1.2rem', 
-                      cursor: 'pointer', 
-                      borderRadius: '30px', 
-                      background: '#1DB954', 
-                      color: 'white', 
-                      border: 'none',
-                      fontWeight: 'bold',
-                      boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-                    }}
-                  >
-                    {isPlaying ? '⏸ Pause' : '▶️ Play'}
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => player?.togglePlay()}
+                      style={{ 
+                        padding: '12px 24px', 
+                        fontSize: '1.2rem', 
+                        cursor: 'pointer', 
+                        borderRadius: '30px', 
+                        background: '#1DB954', 
+                        color: 'white', 
+                        border: 'none',
+                        fontWeight: 'bold',
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      {isPlaying ? '⏸ Pause' : '▶️ Play'}
+                    </button>
+                    {showNextButton && (
+                      <button 
+                        onClick={nextSong}
+                        style={{ 
+                          padding: '10px 20px', 
+                          fontSize: '1rem', 
+                          cursor: 'pointer', 
+                          borderRadius: '20px', 
+                          background: '#ff4444', 
+                          color: 'white', 
+                          border: 'none',
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        Next Song ⏭
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -279,7 +289,7 @@ function App() {
       {renderContent()}
       <footer>
         <div className="version" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-          v1.0.4
+          v1.0.5
           {token && (
             <button 
               style={{ fontSize: '0.7rem', padding: '4px 8px', background: '#333', color: '#fff', border: 'none', borderRadius: '4px' }} 
