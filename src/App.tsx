@@ -175,9 +175,6 @@ function App() {
   };
 
   const getProxyImageUrl = (url: string) => {
-    if (url.includes('i.scdn.co')) {
-      return `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    }
     return url;
   };
 
