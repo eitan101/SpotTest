@@ -58,15 +58,16 @@ export async function getAccessToken(code: string): Promise<string> {
 }
 
 export async function fetchTracks(token: string): Promise<any[]> {
+    console.log("Starting fetchTracks with token:", token.substring(0, 10) + "...");
+    
+    // Using a mix of hitster-like playlists
     const playlistIds = [
         '37i9dQZF1DXcBWIGoYBM3M', // Today's Top Hits
-        '37i9dQZF1DX4UtSsGTpSno', // 60s
         '37i9dQZF1DXaKIArc0GqRy', // 80s
-        '37i9dQZF1DX0JKuGyExSZZ', // 70s
         '37i9dQZF1DXbTxeuPH60LR', // 90s
         '37i9dQZF1DX4o3oZnmoaxn', // 2000s
-        '37i9dQZF1DX5Ejj0EkURtP', // All Out 2010s
-        '37i9dQZF1DX4JpneCYUI7z', // Global Hits
+        '37i9dQZF1DX5Ejj0EkURtP', // 2010s
+        '37i9dQZF1DX0JKuGyExSZZ', // 70s
     ];
     
     const allTracks: any[] = [];
@@ -77,19 +78,39 @@ export async function fetchTracks(token: string): Promise<any[]> {
                 method: "GET", 
                 headers: { Authorization: `Bearer ${token}` }
             });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`Playlist ${id} failed:`, response.status, errorData);
+                continue;
+            }
+
             const data = await response.json();
             if (data.items) {
-                const validTracks = data.items
+                const tracksWithData = data.items
                     .map((item: any) => item.track)
-                    .filter((t: any) => t && t.preview_url && t.album && t.album.release_date);
-                allTracks.push(...validTracks);
+                    .filter((t: any) => t && t.id && t.album && t.album.release_date);
+                
+                allTracks.push(...tracksWithData);
             }
         } catch (e) {
-            console.error("Failed to fetch playlist", id, e);
+            console.error("Fetch exception for playlist", id, e);
         }
     }
     
-    // Remove duplicates
-    const uniqueTracks = Array.from(new Map(allTracks.map(t => [t.id, t])).values());
-    return uniqueTracks;
+    // Deduplicate
+    const unique = Array.from(new Map(allTracks.map(t => [t.id, t])).values());
+    console.log(`Total unique tracks found: ${unique.length}`);
+    
+    const withPreviews = unique.filter(t => t.preview_url);
+    console.log(`Tracks with previews: ${withPreviews.length}`);
+
+    // If we have NO previews, we might be in a restricted region or account.
+    // In that case, we'll return the tracks anyway so the game can at least show cards.
+    if (withPreviews.length === 0 && unique.length > 0) {
+        console.warn("NO TRACKS HAVE PREVIEWS. Returning tracks without previews for debugging.");
+        return unique.slice(0, 50); // Return some tracks so the UI doesn't just show "Error"
+    }
+    
+    return withPreviews;
 }
